@@ -3,7 +3,7 @@
 Goal: be able to look at any network setup and say **which layer each device works at**, **which connection mode joins each segment**, and **prove it with a packet capture**.
 
 Method per module: **read → lab → capture → write note in my own words → answer checkpoint**.
-Labs use Linux network namespaces (`ip netns`) — real kernel networking, no VMs needed. VM/Docker examples appear only as "seen in the wild".
+Labs use Linux network namespaces (`ip netns`) inside a throwaway Docker container — real kernel networking, no VMs, no sudo (see [labs/README.md](labs/README.md)). VM/Docker examples appear only as "seen in the wild".
 
 ## At a glance
 
@@ -151,15 +151,15 @@ every device → its layer → every segment's connection mode → where NAT hap
 
 | Module | Lab done | Note written | Checkpoint |
 |---|---|---|---|
-| A0 Models | ☐ | ☐ | ☐ |
-| A1 L1 | ☐ | ☐ | ☐ |
-| A2 L2 | ☐ | ☐ | ☐ |
-| A3 L3 | ☐ | ☐ | ☐ |
-| A4 L4 | ☐ | ☐ | ☐ |
-| A5 L7 | ☐ | ☐ | ☐ |
-| B1 Bridged | ☐ | ☐ | ☐ |
-| B2 Routed | ☐ | ☐ | ☐ |
-| B3 NAT | ☐ | ☐ | ☐ |
-| B4 Isolated | ☐ | ☐ | ☐ |
-| B5 Tunneled | ☐ | ☐ | ☐ |
-| Capstone | ☐ | ☐ | ☐ |
+| A0 Models | ✅ | ✅ | ✅ |
+| A1 L1 | ✅ | ✅ | ✅ |
+| A2 L2 | ✅ | ✅ | ✅ |
+| A3 L3 | ✅ | ✅ | ✅ |
+| A4 L4 | ✅ | ✅ | ✅ |
+| A5 L7 | ✅ | ✅ | ✅ |
+| B1 Bridged | ✅ | ✅ | ✅ |
+| B2 Routed | ✅ | ✅ | ✅ |
+| B3 NAT | ✅ | ✅ | ✅ |
+| B4 Isolated | ✅ | ✅ | ✅ |
+| B5 Tunneled | ✅ | ✅ | ✅ |
+| Capstone | ✅ | ✅ | ✅ |
