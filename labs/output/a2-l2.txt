@@ -1,0 +1,43 @@
+### 1. h1 pings h2 — capture on h3 (a bystander on the same switch)
+64 bytes from 10.0.0.2: icmp_seq=1 ttl=64 time=0.061 ms
+64 bytes from 10.0.0.2: icmp_seq=2 ttl=64 time=0.048 ms
+2 packets transmitted, 2 received, 0% packet loss, time 1000ms
+--- what h3 saw:
+02:00:00:00:00:01 > ff:ff:ff:ff:ff:ff, ethertype ARP (0x0806), length 42: Request who-has 10.0.0.2 tell 10.0.0.1, length 28
+
+
+### 2. the same exchange as seen by h2 (the target)
+02:00:00:00:00:01 > ff:ff:ff:ff:ff:ff, ethertype ARP (0x0806), length 42: Request who-has 10.0.0.2 tell 10.0.0.1, length 28
+02:00:00:00:00:02 > 02:00:00:00:00:01, ethertype ARP (0x0806), length 42: Reply 10.0.0.2 is-at 02:00:00:00:00:02, length 28
+02:00:00:00:00:01 > 02:00:00:00:00:02, ethertype IPv4 (0x0800), length 98: 10.0.0.1 > 10.0.0.2: ICMP echo request, id 55, seq 1, length 64
+02:00:00:00:00:02 > 02:00:00:00:00:01, ethertype IPv4 (0x0800), length 98: 10.0.0.2 > 10.0.0.1: ICMP echo reply, id 55, seq 1, length 64
+
+### 3. h1's ARP cache (ip neigh)
+10.0.0.2 dev eth0 lladdr 02:00:00:00:00:02 REACHABLE 
+
+### 4. the switch's MAC table (bridge fdb, learned entries only)
+02:00:00:00:00:01 dev p1 master br0 
+02:00:00:00:00:02 dev p2 master br0 
+
+### 5. gratuitous ARP: h3 announces itself unasked (arping -U)
+02:00:00:00:00:03 > ff:ff:ff:ff:ff:ff, ethertype ARP (0x0806), length 42: Request who-has 10.0.0.3 (ff:ff:ff:ff:ff:ff) tell 10.0.0.3, length 28
+
+### 6. VLANs: h1+h2 in VLAN 10, h3 moved to VLAN 20 (same physical switch)
+port              vlan-id  
+p1                10 PVID Egress Untagged
+p2                10 PVID Egress Untagged
+p3                20 PVID Egress Untagged
+h1 -> h2 (VLAN 10): 0% packet loss
+h1 -> h3 (VLAN 20): 100% packet loss
+--- frames h3 saw: 0
+
+
+### 7. a trunk: h4 is VLAN-aware (sub-interface eth0.10), p4 carries tagged VLAN 10
+--- on h4's physical eth0 (the trunk): frames carry an 802.1Q tag
+02:00:00:00:00:01 > ff:ff:ff:ff:ff:ff, ethertype 802.1Q (0x8100), length 46: vlan 10, p 0, ethertype ARP (0x0806), Request who-has 10.0.0.4 tell 10.0.0.1, length 28
+02:00:00:00:00:04 > 02:00:00:00:00:01, ethertype 802.1Q (0x8100), length 46: vlan 10, p 0, ethertype ARP (0x0806), Reply 10.0.0.4 is-at 02:00:00:00:00:04, length 28
+02:00:00:00:00:01 > 02:00:00:00:00:04, ethertype 802.1Q (0x8100), length 102: vlan 10, p 0, ethertype IPv4 (0x0800), 10.0.0.1 > 10.0.0.4: ICMP echo request, id 107, seq 1, length 64
+02:00:00:00:00:04 > 02:00:00:00:00:01, ethertype 802.1Q (0x8100), length 102: vlan 10, p 0, ethertype IPv4 (0x0800), 10.0.0.4 > 10.0.0.1: ICMP echo reply, id 107, seq 1, length 64
+--- on h1's port (access): same traffic, no tag
+02:00:00:00:00:01 > 02:00:00:00:00:04, ethertype IPv4 (0x0800), length 98: 10.0.0.1 > 10.0.0.4: ICMP echo request, id 114, seq 1, length 64
+02:00:00:00:00:04 > 02:00:00:00:00:01, ethertype IPv4 (0x0800), length 98: 10.0.0.4 > 10.0.0.1: ICMP echo reply, id 114, seq 1, length 64
