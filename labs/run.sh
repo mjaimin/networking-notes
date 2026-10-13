@@ -15,8 +15,12 @@ filter=(cat)
 if [[ ${1:-} == --host ]]; then
   # Host mode: share the host's network stack, read-only capture rights only.
   net_args=(--net=host --cap-add NET_RAW --cap-add NET_ADMIN)
-  # Real MACs of this machine and LAN never reach the (public) repo.
-  filter=("$HERE/sanitize-macs.pl")
+  # Real MACs and this host's public IPs never reach the (public) repo.
+  pub4=$(dig -4 +short myip.opendns.com @resolver1.opendns.com 2>/dev/null | head -1)
+  filter=("$HERE/sanitize.pl" --pub4 "$pub4")
+  for p6 in $(ip -6 addr show scope global 2>/dev/null | grep -oE '([0-9a-f]{1,4}:){3}[0-9a-f]{1,4}' | cut -d: -f1-3 | sort -u); do
+    filter+=(--pub6 "$p6")
+  done
   shift
 fi
 

@@ -3,7 +3,17 @@
 # (02:00:00:00:00:NN, locally-administered), in both "aa:bb:.." and hex-dump
 # "aa bb .." forms. Broadcast/multicast MACs are kept — they are protocol
 # constants, not identities. Reads stdin, writes stdout.
+#
+# Also replaces this host's public IPs, passed as arguments by run.sh:
+#   --pub4 <ipv4>      → 203.0.113.7   (RFC 5737 documentation range)
+#   --pub6 <prefix>    → 2001:db8      (RFC 3849 documentation prefix, first 3 groups)
 use strict; use warnings;
+my (@pub4, @pub6);
+while (@ARGV) {
+  my $k = shift; my $v = shift // '';
+  push @pub4, $v if $k eq '--pub4' && $v ne '';
+  push @pub6, $v if $k eq '--pub6' && $v ne '';
+}
 my @lines = <STDIN>;
 my $text = join '', @lines;
 my (%map, $n);
@@ -25,6 +35,9 @@ for my $real (keys %map) {
   my $tail = substr($real, 9);
   $text =~ s/\b\w+_\Q$tail\E\b/$fake/gi;
 }
+$text =~ s/\b\Q$_\E\b/203.0.113.7/g for @pub4;
+$text =~ s/\Q$_\E/2001:db8:0/gi for @pub6;
+
 # Hex-dump ASCII column still spells the original bytes: rebuild it from hex.
 $text =~ s{^([0-9a-f]{4}  )((?:[0-9a-f]{2} ){1,16})(\s*)(.*)$}{
   my ($off, $hex, $pad) = ($1, $2, $3);

@@ -1,0 +1,69 @@
+### 1. DNS: ask a public resolver directly
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 3695
+;; flags: qr rd ra ad; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 1
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 1232
+;; QUESTION SECTION:
+;example.com.			IN	A
+;; ANSWER SECTION:
+example.com.		233	IN	A	104.20.23.154
+example.com.		233	IN	A	172.66.147.243
+;; Query time: 16 msec
+
+### 2. DNS: walk the hierarchy ourselves (dig +trace): root → .com → example.com
+.			3942	IN	NS	g.root-servers.net.
+;; Received 811 bytes from 127.0.0.53#53(127.0.0.53) in 1 ms
+com.			172800	IN	NS	c.gtld-servers.net.
+example.com.		172800	IN	NS	hera.ns.cloudflare.com.
+example.com.		300	IN	A	104.20.23.154
+
+### 3. one HTTPS request, captured end to end (target 172.66.147.243)
+curl: 2 200  dns 0.000012s  tcp 0.014451s  tls 0.039146s  first-byte 0.058756s
+
+--- 3a. without keys: what the network can see
+1   192.168.1.9     → 1.1.1.1         DNS      Standard query 0x36cb A example.com OPT
+2   1.1.1.1         → 192.168.1.9     DNS      Standard query response 0x36cb A example.com A 104.20.23.154 A 172.66.147.243 OPT
+3   192.168.1.9     → 172.66.147.243  TCP      55584 → 443 [SYN] Seq=0 Win=64240 Len=0 MSS=1460 SACK_PERM TSval=3289356423 TSecr=0 WS=1
+4   172.66.147.243  → 192.168.1.9     TCP      443 → 55584 [SYN, ACK] Seq=0 Ack=1 Win=65535 Len=0 MSS=1400 SACK_PERM TSval=2374194369 T
+6   192.168.1.9     → 172.66.147.243  TLSv1    Client Hello (SNI=example.com)
+8   172.66.147.243  → 192.168.1.9     TLSv1.3  Server Hello, Change Cipher Spec, Application Data
+10  192.168.1.9     → 172.66.147.243  TLSv1.3  Change Cipher Spec, Application Data
+11  192.168.1.9     → 172.66.147.243  TLSv1.3  Application Data
+12  192.168.1.9     → 172.66.147.243  TLSv1.3  Application Data
+14  172.66.147.243  → 192.168.1.9     TLSv1.3  Application Data, Application Data
+15  192.168.1.9     → 172.66.147.243  TLSv1.3  Application Data
+16  172.66.147.243  → 192.168.1.9     TLSv1.3  Application Data
+17  172.66.147.243  → 192.168.1.9     TLSv1.3  Application Data
+18  172.66.147.243  → 192.168.1.9     TLSv1.3  Application Data
+20  192.168.1.9     → 172.66.147.243  TLSv1.3  Application Data
+
+--- 3b. the ClientHello in clear: SNI and ALPN leak the site name and protocol
+SNI=example.com   ALPN offered=h2,http/1.1   versions=0x0304,0x0303
+ServerHello: cipher=0x1302   chosen version=0x0304
+
+--- 3c. with the session keys: the HTTP/2 inside TLS
+stream 1: GET / authority=example.com
+stream 1: status 200
+
+### 4. certificate chain the server presented
+ 0 s:CN=example.com
+   i:C=US, O=SSL Corporation, CN=Cloudflare TLS Issuing ECC CA 3
+ 1 s:C=US, O=SSL Corporation, CN=Cloudflare TLS Issuing ECC CA 3
+   i:C=US, O=SSL Corporation, CN=SSL.com TLS Transit ECC CA R2
+ 2 s:C=US, O=SSL Corporation, CN=SSL.com TLS Transit ECC CA R2
+   i:C=US, O=SSL Corporation, CN=SSL.com TLS ECC Root CA 2022
+ 3 s:C=US, O=SSL Corporation, CN=SSL.com TLS ECC Root CA 2022
+   i:C=GB, ST=Greater Manchester, L=Salford, O=Comodo CA Limited, CN=AAA Certificate Services
+
+### 5. HTTP versions side by side
+--http1.1 → 1.1 200 total 0.051939s
+--http2   → 2 200 total 0.054327s
+--http3   → not supported by this curl build
+
+### 6. L7 headers (curl -sI)
+HTTP/2 200 
+content-type: text/html; charset=utf-8
+server: cloudflare
+age: 4039
+alt-svc: h3=":443"; ma=86400

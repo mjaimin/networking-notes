@@ -31,11 +31,11 @@ mtu        1500
 2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000
     link/ether 02:00:00:00:00:01 brd ff:ff:ff:ff:ff:ff
     RX:    bytes   packets errors dropped  missed   mcast           
-    145454009857 105302662      0   11223       0   56430 
+    145495347096 105379968      0   11223       0   56611 
     RX errors:      length    crc   frame    fifo overrun otherhost
-                         0      0       0       0       0  85964113 
+                         0      0       0       0       0  85966821 
     TX:    bytes   packets errors dropped carrier collsns           
-      6749041869  45278433      0   20504       0       0 
+      6785455793  45354797      0   20504       0       0 
     TX errors:     aborted   fifo  window heartbt transns
                          0      0       0       0      29 
 

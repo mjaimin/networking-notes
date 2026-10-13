@@ -75,7 +75,7 @@ The receiver reads each of these to decide which handler gets the rest of the by
 
 ## What I saw in the lab
 
-> MAC addresses in all host captures are replaced with fake `02:00:00:00:00:NN` values by [`labs/sanitize-macs.pl`](../labs/sanitize-macs.pl) (`:01` = my laptop, `:02` = my router). `02:` = "locally administered" bit set, so these can never collide with a real vendor MAC.
+> MAC addresses in all host captures are replaced with fake `02:00:00:00:00:NN` values by [`labs/sanitize.pl`](../labs/sanitize.pl) (`:01` = my laptop, `:02` = my router). `02:` = "locally administered" bit set, so these can never collide with a real vendor MAC.
 
 Lab: [`labs/a0-encapsulation.sh`](../labs/a0-encapsulation.sh) — run `./labs/run.sh --host a0-encapsulation`. Full output: [`labs/output/a0-encapsulation.txt`](../labs/output/a0-encapsulation.txt).
 
