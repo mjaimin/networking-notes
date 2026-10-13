@@ -18,6 +18,14 @@ if [[ ${1:-} == --host ]]; then
   # Real MACs and this host's public IPs never reach the (public) repo.
   pub4=$(dig -4 +short myip.opendns.com @resolver1.opendns.com 2>/dev/null | head -1)
   filter=("$HERE/sanitize.pl" --pub4 "$pub4")
+  # Pinned roles: :01 this host's Ethernet, :02 default gateway, :03 this host's Wi-Fi
+  eth=$(ip -4 route show default | awk '$5 !~ /^wl/ {print $5; exit}')
+  wl=$(ls /sys/class/net | grep -m1 '^wl')
+  gw=$(ip -4 route show default | awk 'NR==1{print $3}')
+  gwmac=$(ip neigh show "$gw" 2>/dev/null | grep -oE '([0-9a-f]{2}:){5}[0-9a-f]{2}' | head -1)
+  [[ -n $eth ]]   && filter+=(--mac "$(cat /sys/class/net/$eth/address)=02:00:00:00:00:01")
+  [[ -n $gwmac ]] && filter+=(--mac "$gwmac=02:00:00:00:00:02")
+  [[ -n $wl ]]    && filter+=(--mac "$(cat /sys/class/net/$wl/address)=02:00:00:00:00:03")
   for p6 in $(ip -6 addr show scope global 2>/dev/null | grep -oE '([0-9a-f]{1,4}:){3}[0-9a-f]{1,4}' | cut -d: -f1-3 | sort -u); do
     filter+=(--pub6 "$p6")
   done

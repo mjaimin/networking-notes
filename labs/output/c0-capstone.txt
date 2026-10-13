@@ -1,0 +1,64 @@
+### 1. interfaces (L1/L2 state + IPv4)
+eth0             UP             192.168.1.9/24 192.168.1.240/24 192.168.1.241/24 192.168.1.242/24 192.168.1.243/24 192.168.1.244/24 192.168.1.245/24 192.168.1.246/24 192.168.1.247/24 192.168.1.248/24 192.168.1.249/24 192.168.1.250/24 192.168.1.251/24 192.168.1.252/24 
+wlp130s0f0       UP             192.168.1.4/24 
+docker0          UP             172.17.0.1/16 
+br-8c847a550577  DOWN           172.18.0.1/16 
+
+br-8c847a550577  carrier=0 speed=-1 mtu=1500 master=
+docker0          carrier=1 speed=10000 mtu=1500 master=
+erspan0          carrier= speed= mtu=1450 master=
+eth0             carrier=1 speed=1000 mtu=1500 master=
+gre0             carrier= speed= mtu=1476 master=
+gretap0          carrier= speed= mtu=1462 master=
+tailscale0       carrier=1 speed=-1 mtu=1280 master=
+wlp130s0f0       carrier=1 speed= mtu=1492 master=
+
+### 2. routing table (L3)
+default via 192.168.1.1 dev eth0 proto static metric 100 
+default via 192.168.1.1 dev wlp130s0f0 proto dhcp src 192.168.1.4 metric 600 
+172.17.0.0/16 dev docker0 proto kernel scope link src 172.17.0.1 
+172.18.0.0/16 dev br-8c847a550577 proto kernel scope link src 172.18.0.1 linkdown 
+192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.9 metric 100 
+192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.240 metric 100 
+192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.241 metric 100 
+192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.242 metric 100 
+192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.243 metric 100 
+192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.244 metric 100 
+192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.245 metric 100 
+192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.246 metric 100 
+192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.247 metric 100 
+192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.248 metric 100 
+192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.249 metric 100 
+192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.250 metric 100 
+192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.251 metric 100 
+192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.252 metric 100 
+192.168.1.0/24 dev wlp130s0f0 proto kernel scope link src 192.168.1.4 metric 600 
+
+### 3. which interface actually wins for the internet?
+1.1.1.1 via 192.168.1.1 dev eth0 src 192.168.1.9 uid 0 
+
+### 4. gateway neighbour entries (L2 ↔ L3 glue)
+192.168.1.1 dev wlp130s0f0 lladdr 02:00:00:00:00:02 REACHABLE 
+192.168.1.1 dev eth0 lladdr 02:00:00:00:00:02 REACHABLE 
+
+### 5. DNS configuration
+nameserver 127.0.0.53
+search .
+
+### 6. software bridges on this host (B1) and their ports
+br-8c847a550577  ports=0  stp=0
+docker0          ports=2  stp=0
+
+### 7. NAT rules on this host (B3) — Docker's masquerade
+-A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE
+-A POSTROUTING -s 172.18.0.0/16 ! -o br-8c847a550577 -j MASQUERADE
+ip_forward = 1
+
+### 8. the path out (first 4 hops, public hops shown as a category only)
+  1  192.168.1.1    private (RFC 1918)
+  2  <isp-public>   public ISP router
+  3  <isp-public>   public ISP router
+  4  <isp-public>   public ISP router
+
+### 9. does my router's WAN address equal my public address?  (CGNAT test, no addresses printed)
+hop 2 is a public ISP router → single NAT at my home router (public IP is mine)

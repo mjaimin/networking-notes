@@ -7,16 +7,19 @@
 # Also replaces this host's public IPs, passed as arguments by run.sh:
 #   --pub4 <ipv4>      → 203.0.113.7   (RFC 5737 documentation range)
 #   --pub6 <prefix>    → 2001:db8      (RFC 3849 documentation prefix, first 3 groups)
+#   --mac <real>=<fake> pin a known device to a fixed fake MAC (stable across files)
 use strict; use warnings;
-my (@pub4, @pub6);
+my (@pub4, @pub6, %pinned);
 while (@ARGV) {
   my $k = shift; my $v = shift // '';
   push @pub4, $v if $k eq '--pub4' && $v ne '';
   push @pub6, $v if $k eq '--pub6' && $v ne '';
+  if ($k eq '--mac' && $v =~ /^(\S+)=(\S+)$/) { $pinned{lc $1} = lc $2; }
 }
 my @lines = <STDIN>;
 my $text = join '', @lines;
-my (%map, $n);
+my %map = %pinned;
+my $n = 0x0f;                              # unpinned MACs get :10, :11, ...
 my $hx = qr/[0-9a-f]{2}/i;
 for my $mac ($text =~ /\b($hx(?::$hx){5})\b/g) {
   my $m = lc $mac;

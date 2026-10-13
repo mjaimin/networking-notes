@@ -1,19 +1,19 @@
 ### capture on eth0: ip host example.com and tcp port 80
-curl: HTTP 200 from 172.66.147.243
+curl: HTTP 200 from 104.20.23.154
 
 ### 1. one line per frame (-e adds the L2 header)
-02:00:00:00:00:01 > 02:00:00:00:00:02, ethertype IPv4 (0x0800), length 74: 192.168.1.9.35954 > 172.66.147.243.80: Flags [S], seq 3499094375, win 64240, options [mss 1460,sackOK,TS val 2102656614 ecr 0,nop,wscale 10], length 0
-02:00:00:00:00:02 > 02:00:00:00:00:01, ethertype IPv4 (0x0800), length 74: 172.66.147.243.80 > 192.168.1.9.35954: Flags [S.], seq 1338636364, ack 3499094376, win 65535, options [mss 1400,sackOK,TS val 4136703432 ecr 2102656614,nop,wscale 13], length 0
-02:00:00:00:00:01 > 02:00:00:00:00:02, ethertype IPv4 (0x0800), length 66: 192.168.1.9.35954 > 172.66.147.243.80: Flags [.], ack 1, win 63, options [nop,nop,TS val 2102656625 ecr 4136703432], length 0
-02:00:00:00:00:01 > 02:00:00:00:00:02, ethertype IPv4 (0x0800), length 140: 192.168.1.9.35954 > 172.66.147.243.80: Flags [P.], seq 1:75, ack 1, win 63, options [nop,nop,TS val 2102656625 ecr 4136703432], length 74: HTTP: GET / HTTP/1.1
-02:00:00:00:00:02 > 02:00:00:00:00:01, ethertype IPv4 (0x0800), length 66: 172.66.147.243.80 > 192.168.1.9.35954: Flags [.], ack 75, win 16, options [nop,nop,TS val 4136703443 ecr 2102656625], length 0
-02:00:00:00:00:02 > 02:00:00:00:00:01, ethertype IPv4 (0x0800), length 997: 172.66.147.243.80 > 192.168.1.9.35954: Flags [P.], seq 1:932, ack 75, win 16, options [nop,nop,TS val 4136703450 ecr 2102656625], length 931: HTTP: HTTP/1.1 200 OK
-02:00:00:00:00:02 > 02:00:00:00:00:01, ethertype IPv4 (0x0800), length 71: 172.66.147.243.80 > 192.168.1.9.35954: Flags [P.], seq 932:937, ack 75, win 16, options [nop,nop,TS val 4136703450 ecr 2102656625], length 5: HTTP
-02:00:00:00:00:01 > 02:00:00:00:00:02, ethertype IPv4 (0x0800), length 66: 192.168.1.9.35954 > 172.66.147.243.80: Flags [.], ack 932, win 63, options [nop,nop,TS val 2102656642 ecr 4136703450], length 0
-02:00:00:00:00:01 > 02:00:00:00:00:02, ethertype IPv4 (0x0800), length 66: 192.168.1.9.35954 > 172.66.147.243.80: Flags [.], ack 937, win 63, options [nop,nop,TS val 2102656642 ecr 4136703450], length 0
-02:00:00:00:00:01 > 02:00:00:00:00:02, ethertype IPv4 (0x0800), length 66: 192.168.1.9.35954 > 172.66.147.243.80: Flags [F.], seq 75, ack 937, win 63, options [nop,nop,TS val 2102656643 ecr 4136703450], length 0
-02:00:00:00:00:02 > 02:00:00:00:00:01, ethertype IPv4 (0x0800), length 66: 172.66.147.243.80 > 192.168.1.9.35954: Flags [F.], seq 937, ack 76, win 16, options [nop,nop,TS val 4136703461 ecr 2102656643], length 0
-02:00:00:00:00:01 > 02:00:00:00:00:02, ethertype IPv4 (0x0800), length 66: 192.168.1.9.35954 > 172.66.147.243.80: Flags [.], ack 938, win 63, options [nop,nop,TS val 2102656653 ecr 4136703461], length 0
+02:00:00:00:00:01 > 02:00:00:00:00:02, ethertype IPv4 (0x0800), length 74: 192.168.1.9.49680 > 104.20.23.154.80: Flags [S], seq 2007204684, win 64240, options [mss 1460,sackOK,TS val 4263626324 ecr 0,nop,wscale 10], length 0
+02:00:00:00:00:02 > 02:00:00:00:00:01, ethertype IPv4 (0x0800), length 74: 104.20.23.154.80 > 192.168.1.9.49680: Flags [S.], seq 1970590457, ack 2007204685, win 65535, options [mss 1400,sackOK,TS val 1909309155 ecr 4263626324,nop,wscale 13], length 0
+02:00:00:00:00:01 > 02:00:00:00:00:02, ethertype IPv4 (0x0800), length 66: 192.168.1.9.49680 > 104.20.23.154.80: Flags [.], ack 1, win 63, options [nop,nop,TS val 4263626334 ecr 1909309155], length 0
+02:00:00:00:00:01 > 02:00:00:00:00:02, ethertype IPv4 (0x0800), length 140: 192.168.1.9.49680 > 104.20.23.154.80: Flags [P.], seq 1:75, ack 1, win 63, options [nop,nop,TS val 4263626334 ecr 1909309155], length 74: HTTP: GET / HTTP/1.1
+02:00:00:00:00:02 > 02:00:00:00:00:01, ethertype IPv4 (0x0800), length 66: 104.20.23.154.80 > 192.168.1.9.49680: Flags [.], ack 75, win 16, options [nop,nop,TS val 1909309164 ecr 4263626334], length 0
+02:00:00:00:00:02 > 02:00:00:00:00:01, ethertype IPv4 (0x0800), length 998: 104.20.23.154.80 > 192.168.1.9.49680: Flags [P.], seq 1:933, ack 75, win 16, options [nop,nop,TS val 1909309170 ecr 4263626334], length 932: HTTP: HTTP/1.1 200 OK
+02:00:00:00:00:02 > 02:00:00:00:00:01, ethertype IPv4 (0x0800), length 71: 104.20.23.154.80 > 192.168.1.9.49680: Flags [P.], seq 933:938, ack 75, win 16, options [nop,nop,TS val 1909309170 ecr 4263626334], length 5: HTTP
+02:00:00:00:00:01 > 02:00:00:00:00:02, ethertype IPv4 (0x0800), length 66: 192.168.1.9.49680 > 104.20.23.154.80: Flags [.], ack 933, win 63, options [nop,nop,TS val 4263626349 ecr 1909309170], length 0
+02:00:00:00:00:01 > 02:00:00:00:00:02, ethertype IPv4 (0x0800), length 66: 192.168.1.9.49680 > 104.20.23.154.80: Flags [.], ack 938, win 63, options [nop,nop,TS val 4263626349 ecr 1909309170], length 0
+02:00:00:00:00:01 > 02:00:00:00:00:02, ethertype IPv4 (0x0800), length 66: 192.168.1.9.49680 > 104.20.23.154.80: Flags [F.], seq 75, ack 938, win 63, options [nop,nop,TS val 4263626349 ecr 1909309170], length 0
+02:00:00:00:00:02 > 02:00:00:00:00:01, ethertype IPv4 (0x0800), length 66: 104.20.23.154.80 > 192.168.1.9.49680: Flags [F.], seq 938, ack 76, win 16, options [nop,nop,TS val 1909309180 ecr 4263626349], length 0
+02:00:00:00:00:01 > 02:00:00:00:00:02, ethertype IPv4 (0x0800), length 66: 192.168.1.9.49680 > 104.20.23.154.80: Flags [.], ack 939, win 63, options [nop,nop,TS val 4263626359 ecr 1909309180], length 0
 
 ### 2. the HTTP GET frame, decoded layer by layer
 Frame 4: 140 bytes on wire (1120 bits), 140 bytes captured (1120 bits)
@@ -21,19 +21,19 @@ Ethernet II, Src: 02:00:00:00:00:01, Dst: 02:00:00:00:00:02
     Destination: 02:00:00:00:00:02
     Source: 02:00:00:00:00:01
     Type: IPv4 (0x0800)
-Internet Protocol Version 4, Src: 192.168.1.9, Dst: 172.66.147.243
+Internet Protocol Version 4, Src: 192.168.1.9, Dst: 104.20.23.154
     0100 .... = Version: 4
     .... 0101 = Header Length: 20 bytes (5)
     Differentiated Services Field: 0x00 (DSCP: CS0, ECN: Not-ECT)
     Total Length: 126
-    Identification: 0x222e (8750)
+    Identification: 0x78db (30939)
     010. .... = Flags: 0x2, Don't fragment
     ...0 0000 0000 0000 = Fragment Offset: 0
     Time to Live: 64
     Protocol: TCP (6)
-    Header Checksum: 0x1665 [validation disabled]
-Transmission Control Protocol, Src Port: 35954, Dst Port: 80, Seq: 1, Ack: 1, Len: 74
-    Source Port: 35954
+    Header Checksum: 0x803f [validation disabled]
+Transmission Control Protocol, Src Port: 49680, Dst Port: 80, Seq: 1, Ack: 1, Len: 74
+    Source Port: 49680
     Destination Port: 80
     Sequence Number: 1    (relative sequence number)
     Acknowledgment Number: 1    (relative ack number)
@@ -45,7 +45,7 @@ Transmission Control Protocol, Src Port: 35954, Dst Port: 80, Seq: 1, Ack: 1, Le
         .... .... ..0. = Syn: Not set
         .... .... ...0 = Fin: Not set
     Window: 63
-    Checksum: 0x0258 [unverified]
+    Checksum: 0x41d0 [unverified]
     TCP payload (74 bytes)
 Hypertext Transfer Protocol
     GET / HTTP/1.1\r\n
@@ -60,10 +60,10 @@ Hypertext Transfer Protocol
 
 ### 3. same frame as raw bytes (eth | ip | tcp | http)
 0000  02 00 00 00 00 02 02 00 00 00 00 01 08 00 45 00   ..............E.
-0010  00 7e 22 2e 40 00 40 06 16 65 c0 a8 01 09 ac 42   .~".@.@..e.....B
-0020  93 f3 8c 72 00 50 d0 8f f1 68 4f c9 f8 4d 80 18   ...r.P...hO..M..
-0030  00 3f 02 58 00 00 01 01 08 0a 7d 53 fe 71 f6 91   .?.X......}S.q..
-0040  15 c8 47 45 54 20 2f 20 48 54 54 50 2f 31 2e 31   ..GET / HTTP/1.1
+0010  00 7e 78 db 40 00 40 06 80 3f c0 a8 01 09 68 14   .~x.@.@..?....h.
+0020  17 9a c2 10 00 50 77 a3 83 4d 75 74 d2 fa 80 18   .....Pw..Mut....
+0030  00 3f 41 d0 00 00 01 01 08 0a fe 21 c6 5e 71 cd   .?A........!.^q.
+0040  be e3 47 45 54 20 2f 20 48 54 54 50 2f 31 2e 31   ..GET / HTTP/1.1
 0050  0d 0a 48 6f 73 74 3a 20 65 78 61 6d 70 6c 65 2e   ..Host: example.
 0060  63 6f 6d 0d 0a 55 73 65 72 2d 41 67 65 6e 74 3a   com..User-Agent:
 0070  20 63 75 72 6c 2f 38 2e 37 2e 31 0d 0a 41 63 63     curl/8.7.1..Acc
