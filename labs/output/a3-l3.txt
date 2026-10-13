@@ -1,0 +1,73 @@
+### 1. routing tables
+--- A
+default via 10.0.1.1 dev eth0 
+10.0.1.0/24 dev eth0 proto kernel scope link src 10.0.1.10 
+--- R
+10.0.1.0/24 dev eth0 proto kernel scope link src 10.0.1.1 
+10.0.2.0/24 dev eth1 proto kernel scope link src 10.0.2.1 
+--- C
+default via 10.0.2.1 dev eth0 
+10.0.2.0/24 dev eth0 proto kernel scope link src 10.0.2.10 
+
+### 2. A pings C — same packet captured on both sides of R (-v shows TTL)
+64 bytes from 10.0.2.10: icmp_seq=1 ttl=63 time=0.059 ms
+--- link A<->R (R eth0)
+02:00:00:00:0a:00 > 02:00:00:00:01:01, ethertype IPv4 (0x0800), length 98: (tos 0x0, ttl 64, id 2680, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.0.1.10 > 10.0.2.10: ICMP echo request, id 47, seq 1, length 64
+02:00:00:00:01:01 > 02:00:00:00:0a:00, ethertype IPv4 (0x0800), length 98: (tos 0x0, ttl 63, id 34835, offset 0, flags [none], proto ICMP (1), length 84)
+    10.0.2.10 > 10.0.1.10: ICMP echo reply, id 47, seq 1, length 64
+--- link R<->C (R eth1)
+02:00:00:00:01:02 > 02:00:00:00:0c:00, ethertype IPv4 (0x0800), length 98: (tos 0x0, ttl 63, id 2680, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.0.1.10 > 10.0.2.10: ICMP echo request, id 47, seq 1, length 64
+02:00:00:00:0c:00 > 02:00:00:00:01:02, ethertype IPv4 (0x0800), length 98: (tos 0x0, ttl 64, id 34835, offset 0, flags [none], proto ICMP (1), length 84)
+    10.0.2.10 > 10.0.1.10: ICMP echo reply, id 47, seq 1, length 64
+
+### 3. A's ARP cache: it knows the router's MAC, never C's
+10.0.1.1 dev eth0 lladdr 02:00:00:00:01:01 REACHABLE 
+
+### 4. traceroute from A to C (TTL 1, 2, ...)
+traceroute to 10.0.2.10 (10.0.2.10), 30 hops max, 46 byte packets
+ 1  10.0.1.1  0.011 ms
+ 2  10.0.2.10  0.007 ms
+
+### 5. how TTL expiry looks on the wire (ping with TTL=1)
+From 10.0.1.1 icmp_seq=1 Time to live exceeded
+02:00:00:00:0a:00 > 02:00:00:00:01:01, ethertype IPv4 (0x0800), length 98: (tos 0x0, ttl 1, id 3344, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.0.1.10 > 10.0.2.10: ICMP echo request, id 58, seq 1, length 64
+02:00:00:00:01:01 > 02:00:00:00:0a:00, ethertype IPv4 (0x0800), length 126: (tos 0xc0, ttl 64, id 54310, offset 0, flags [none], proto ICMP (1), length 112)
+    10.0.1.1 > 10.0.1.10: ICMP time exceeded in-transit, length 92
+	(tos 0x0, ttl 1, id 3344, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.0.1.10 > 10.0.2.10: ICMP echo request, id 58, seq 1, length 64
+
+### 6. no route: A pings 10.0.9.9 — R has no route for it
+From 10.0.1.1 icmp_seq=1 Destination Net Unreachable
+1 packets transmitted, 0 received, +1 errors, 100% packet loss, time 0ms
+
+### 7. longest-prefix match: add a /32 blackhole on A for C only
+default via 10.0.1.1 dev eth0 
+blackhole 10.0.2.10 
+route get 10.0.2.10 (/32 blackhole wins): RTNETLINK answers: Invalid argument
+ping 10.0.2.10: ping: connect: Invalid argument
+route get 10.0.2.11 (only default matches): 10.0.2.11 via 10.0.1.1 dev eth0 src 10.0.1.10 uid 0 
+
+### 8. asymmetric failure: delete C's default route (no way back)
+02:00:00:00:01:02 > 02:00:00:00:0c:00, ethertype IPv4 (0x0800), length 98: 10.0.1.10 > 10.0.2.10: ICMP echo request, id 81, seq 1, length 64
+1 packets transmitted, 0 received, 100% packet loss, time 0ms
+
+(C received the request but had no route to 10.0.1.10 — it could not reply)
+
+### 9. router stops forwarding (ip_forward=0)
+1 packets transmitted, 0 received, 100% packet loss, time 0ms
+
+### 10. Path MTU: R<->C link shrunk to 1400, A sends 1472+28=1500 B with DF set
+From 10.0.1.1 icmp_seq=1 Frag needed and DF set (mtu = 1400)
+1 packets transmitted, 0 received, +1 errors, 100% packet loss, time 0ms
+02:00:00:00:0a:00 > 02:00:00:00:01:01, ethertype IPv4 (0x0800), length 1514: (tos 0x0, ttl 64, id 0, offset 0, flags [DF], proto ICMP (1), length 1500)
+    10.0.1.10 > 10.0.2.10: ICMP echo request, id 95, seq 1, length 1480
+02:00:00:00:01:01 > 02:00:00:00:0a:00, ethertype IPv4 (0x0800), length 590: (tos 0xc0, ttl 64, id 56286, offset 0, flags [none], proto ICMP (1), length 576)
+    10.0.1.1 > 10.0.1.10: ICMP 10.0.2.10 unreachable - need to frag (mtu 1400), length 556
+	(tos 0x0, ttl 64, id 0, offset 0, flags [DF], proto ICMP (1), length 1500)
+    10.0.1.10 > 10.0.2.10: ICMP echo request, id 95, seq 1, length 1480
+--- A's route cache now remembers the smaller path MTU:
+10.0.2.10 via 10.0.1.1 dev eth0 src 10.0.1.10 uid 0 
+    cache expires 599sec mtu 1400 
