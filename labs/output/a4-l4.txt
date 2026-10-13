@@ -1,0 +1,70 @@
+### 1. listening sockets on the server (ss -tlnp)
+State  Recv-Q Send-Q Local Address:Port Peer Address:Port
+LISTEN 0      5            0.0.0.0:7000      0.0.0.0:*   
+
+### 2. full TCP life cycle: handshake, data, teardown
+IP 10.0.0.1.48022 > 10.0.0.2.7000: Flags [S], seq 316443296, win 64240, options [mss 1460,sackOK,TS val 1473194686 ecr 0,nop,wscale 10], length 0
+IP 10.0.0.2.7000 > 10.0.0.1.48022: Flags [S.], seq 1797968601, ack 316443297, win 65160, options [mss 1460,sackOK,TS val 3267452000 ecr 1473194686,nop,wscale 10], length 0
+IP 10.0.0.1.48022 > 10.0.0.2.7000: Flags [.], ack 1, win 63, options [nop,nop,TS val 1473194686 ecr 3267452000], length 0
+hello-from-server
+IP 10.0.0.1.48022 > 10.0.0.2.7000: Flags [P.], seq 1:4, ack 1, win 63, options [nop,nop,TS val 1473194686 ecr 3267452000], length 3
+IP 10.0.0.2.7000 > 10.0.0.1.48022: Flags [.], ack 4, win 64, options [nop,nop,TS val 3267452000 ecr 1473194686], length 0
+IP 10.0.0.2.7000 > 10.0.0.1.48022: Flags [P.], seq 1:19, ack 4, win 64, options [nop,nop,TS val 3267452001 ecr 1473194686], length 18
+IP 10.0.0.1.48022 > 10.0.0.2.7000: Flags [.], ack 19, win 63, options [nop,nop,TS val 1473194687 ecr 3267452001], length 0
+IP 10.0.0.2.7000 > 10.0.0.1.48022: Flags [F.], seq 19, ack 4, win 64, options [nop,nop,TS val 3267452001 ecr 1473194687], length 0
+IP 10.0.0.1.48022 > 10.0.0.2.7000: Flags [.], ack 20, win 63, options [nop,nop,TS val 1473194729 ecr 3267452001], length 0
+IP 10.0.0.1.48022 > 10.0.0.2.7000: Flags [F.], seq 4, ack 20, win 63, options [nop,nop,TS val 1473194985 ecr 3267452001], length 0
+IP 10.0.0.2.7000 > 10.0.0.1.48022: Flags [.], ack 5, win 64, options [nop,nop,TS val 3267452299 ecr 1473194985], length 0
+
+
+### 3. socket states right after: whoever sent the FIRST FIN holds TIME_WAIT
+--- server:
+State     Recv-Q Send-Q Local Address:Port Peer Address:Port 
+LISTEN    0      5            0.0.0.0:7000      0.0.0.0:*    
+TIME-WAIT 0      0           10.0.0.2:7000     10.0.0.1:48022
+--- client:
+State Recv-Q Send-Q Local Address:Port Peer Address:Port
+
+### 4. ephemeral port range the client picks from
+net.ipv4.ip_local_port_range = 32768	60999
+
+### 5. closed port → RST → 'Connection refused' (instant)
+connect(5, AF=2 10.0.0.2:9999, 16): Connection refused
+took 2 ms
+IP 10.0.0.1.52924 > 10.0.0.2.9999: Flags [S], seq 266527064, win 64240, options [mss 1460,sackOK,TS val 4013367963 ecr 0,nop,wscale 10], length 0
+IP 10.0.0.2.9999 > 10.0.0.1.52924: Flags [R.], seq 0, ack 266527065, win 0, length 0
+
+
+### 6. firewall DROP → SYN retransmits → 'timed out' (-ttt = gap since previous packet)
+net.ipv4.tcp_syn_retries = 6
+net.ipv4.tcp_syn_linear_timeouts = 4
+ 00:00:00.000000 IP 10.0.0.1.48030 > 10.0.0.2.7000: Flags [S], seq 306941940
+connecting to AF=2 10.0.0.2:7000: Operation timed out
+took 15018 ms
+ 00:00:01.040679 IP 10.0.0.1.48030 > 10.0.0.2.7000: Flags [S], seq 306941940
+ 00:00:01.023996 IP 10.0.0.1.48030 > 10.0.0.2.7000: Flags [S], seq 306941940
+ 00:00:01.024004 IP 10.0.0.1.48030 > 10.0.0.2.7000: Flags [S], seq 306941940
+ 00:00:01.023992 IP 10.0.0.1.48030 > 10.0.0.2.7000: Flags [S], seq 306941940
+ 00:00:01.024996 IP 10.0.0.1.48030 > 10.0.0.2.7000: Flags [S], seq 306941940
+ 00:00:02.047001 IP 10.0.0.1.48030 > 10.0.0.2.7000: Flags [S], seq 306941940
+ 00:00:04.031995 IP 10.0.0.1.48030 > 10.0.0.2.7000: Flags [S], seq 306941940
+
+
+### 7. firewall REJECT variants — what the client is told
+tcp-reset                → connect(5, AF=2 10.0.0.2:7000, 16): Connection refused
+icmp-port-unreachable    → connect(5, AF=2 10.0.0.2:7000, 16): Connection refused
+icmp-host-prohibited     → connect(5, AF=2 10.0.0.2:7000, 16): Host is unreachable
+
+### 8. UDP: no handshake; closed port answered by ICMP port unreachable
+udp-pong
+IP 10.0.0.1.38802 > 10.0.0.2.6000: UDP, length 5
+IP 10.0.0.2.6000 > 10.0.0.1.38802: UDP, length 9
+read(5, 0x79f3ac26a000, 8192): Connection refused
+IP 10.0.0.1.44306 > 10.0.0.2.6001: UDP, length 5
+IP 10.0.0.2 > 10.0.0.1: ICMP 10.0.0.2 udp port 6001 unreachable, length 41
+
+
+### 9. 20% packet loss on the link → TCP retransmits, the app never notices
+client received 200000 bytes (expected 200000)
+TcpRetransSegs                  45                 0.0
+TcpExtTCPLostRetransmit         12                 0.0
