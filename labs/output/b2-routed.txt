@@ -1,0 +1,59 @@
+### 1. only connected routes — R1 has never heard of 10.2.0.0/24
+--- R1:
+10.1.0.0/24 dev lan proto kernel scope link src 10.1.0.1 
+10.255.0.0/30 dev wan proto kernel scope link src 10.255.0.1 
+From 10.1.0.1 icmp_seq=1 Destination Net Unreachable
+1 packets transmitted, 0 received, +1 errors, 100% packet loss, time 0ms
+
+### 2. half the job: R1 learns LAN-B, R2 still has no route back to LAN-A
+2a. R2 rp_filter = 2 (all=2)
+1 packets transmitted, 0 received, 100% packet loss, time 0ms
+--- arriving at R2 (wan):
+IP 10.1.0.10 > 10.2.0.10: ICMP echo request, id 60, seq 1, length 64
+
+--- at b1 (destination):
+(nothing)
+R2 reverse-path drops: 1
+
+2b. same, with rp_filter off on R2
+1 packets transmitted, 0 received, 100% packet loss, time 0ms
+--- arriving at R2 (wan):
+IP 10.1.0.10 > 10.2.0.10: ICMP echo request, id 77, seq 1, length 64
+
+--- at b1 (destination):
+IP 10.1.0.10 > 10.2.0.10: ICMP echo request, id 77, seq 1, length 64
+IP 10.2.0.10 > 10.1.0.10: ICMP echo reply, id 77, seq 1, length 64
+IP 10.2.0.1 > 10.2.0.10: ICMP net 10.1.0.10 unreachable, length 92
+--- R2 deciding on b1's reply: RTNETLINK answers: Network unreachable
+
+### 3. both directions routed
+64 bytes from 10.2.0.10: icmp_seq=1 ttl=62 time=0.037 ms
+ 1  10.1.0.1  0.003 ms
+ 2  10.255.0.2  0.001 ms
+ 3  10.2.0.10  0.001 ms
+
+### 4. the server sees the client's REAL address (no NAT anywhere)
+you are 10.1.0.10:58568
+
+### 5. routing tables at the end
+--- a1
+default via 10.1.0.1 dev eth0 
+--- R1
+10.2.0.0/24 via 10.255.0.2 dev wan 
+--- R2
+10.1.0.0/24 via 10.255.0.1 dev wan 
+--- b1
+default via 10.2.0.1 dev eth0 
+
+### 6. router-on-a-stick: one trunk, two VLANs, R1 routes between them
+port              vlan-id  
+p-trunk           10
+                  20
+p-v10             10 PVID Egress Untagged
+p-v20             20 PVID Egress Untagged
+64 bytes from 172.16.20.10: icmp_seq=1 ttl=63 time=0.094 ms
+02:00:00:00:00:10 > 02:00:00:00:01:ff, ethertype 802.1Q (0x8100), length 102: vlan 10, p 0, ethertype IPv4 (0x0800), 172.16.10.10 > 172.16.20.10: ICMP echo request, id 146, seq 1, length 64
+02:00:00:00:01:ff > 02:00:00:00:00:20, ethertype 802.1Q (0x8100), length 102: vlan 20, p 0, ethertype IPv4 (0x0800), 172.16.10.10 > 172.16.20.10: ICMP echo request, id 146, seq 1, length 64
+02:00:00:00:00:20 > 02:00:00:00:01:ff, ethertype 802.1Q (0x8100), length 102: vlan 20, p 0, ethertype IPv4 (0x0800), 172.16.20.10 > 172.16.10.10: ICMP echo reply, id 146, seq 1, length 64
+02:00:00:00:01:ff > 02:00:00:00:00:10, ethertype 802.1Q (0x8100), length 102: vlan 10, p 0, ethertype IPv4 (0x0800), 172.16.20.10 > 172.16.10.10: ICMP echo reply, id 146, seq 1, length 64
+
