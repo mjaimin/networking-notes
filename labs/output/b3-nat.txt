@@ -1,0 +1,49 @@
+### 1. no NAT: private source leaves the house — the reply has nowhere to go
+(isp's rp_filter off for this step, so we can watch the packet reach srv)
+IP 192.168.1.10 > 198.51.100.10: ICMP echo request, id 64, seq 1, length 64
+IP 198.51.100.10 > 192.168.1.10: ICMP echo reply, id 64, seq 1, length 64
+IP 198.51.100.1 > 198.51.100.10: ICMP net 192.168.1.10 unreachable, length 92
+1 packets transmitted, 0 received, 100% packet loss, time 0ms
+
+isp: route to 192.168.1.10? → RTNETLINK answers: Network unreachable
+
+### 2. turn on masquerade (SNAT to the WAN address)
+-A POSTROUTING -o wan -j MASQUERADE
+64 bytes from 198.51.100.10: icmp_seq=1 ttl=62 time=0.056 ms
+--- gw LAN side:
+IP 192.168.1.10 > 198.51.100.10: ICMP echo request, id 82, seq 1, length 64
+IP 198.51.100.10 > 192.168.1.10: ICMP echo reply, id 82, seq 1, length 64
+
+--- gw WAN side:
+IP 203.0.113.2 > 198.51.100.10: ICMP echo request, id 82, seq 1, length 64
+IP 198.51.100.10 > 203.0.113.2: ICMP echo reply, id 82, seq 1, length 64
+
+
+### 3. the conntrack table that makes the reply find its way home
+icmp     1 26 src=192.168.1.10 dst=198.51.100.10 type=8 code=0 id=82 src=198.51.100.10 dst=203.0.113.2 type=0 code=0 id=82
+
+### 4. PAT: l1 and l2 both use source port 40000 to srv:80
+l1: srv sees you as 203.0.113.2:40000
+l2: srv sees you as 203.0.113.2:18878
+TIME_WAIT src=192.168.1.20 dst=198.51.100.10 sport=40000 dport=80 src=198.51.100.10 dst=203.0.113.2 sport=80 dport=18878 [ASSURED]
+TIME_WAIT src=192.168.1.10 dst=198.51.100.10 sport=40000 dport=80 src=198.51.100.10 dst=203.0.113.2 sport=80 dport=40000 [ASSURED]
+
+### 5. unsolicited inbound: srv → 203.0.113.2:8080 (no forward rule)
+srv: connect(5, AF=2 203.0.113.2:8080, 16): Connection refused
+
+### 6. DNAT port-forward 203.0.113.2:8080 → 192.168.1.10:8080
+-A PREROUTING -i wan -p tcp -m tcp --dport 8080 -j DNAT --to-destination 192.168.1.10:8080
+srv: l1 web server - you are 198.51.100.10
+TIME_WAIT src=198.51.100.10 dst=203.0.113.2 sport=40976 dport=8080 src=192.168.1.10 dst=198.51.100.10 sport=8080 dport=40976 [ASSURED]
+
+### 7. hairpin: l2 (inside) uses the PUBLIC address 203.0.113.2:8080
+l2: connect(5, AF=2 203.0.113.2:8080, 16): Connection refused
+--- 7a. add DNAT for LAN-side traffic only
+l2: connecting to AF=2 203.0.113.2:8080: Operation timed out
+--- what l2 saw:
+IP 192.168.1.20.49542 > 203.0.113.2.8080: Flags [S], seq 12082066
+IP 192.168.1.10.8080 > 192.168.1.20.49542: Flags [S.], seq 2137517767, ack 12082067
+IP 192.168.1.20.49542 > 192.168.1.10.8080: Flags [R], seq 12082067
+IP 192.168.1.20.49542 > 203.0.113.2.8080: Flags [S], seq 12082066
+--- 7b. add SNAT so l1 replies through gw instead of straight to l2
+l2: l1 web server - you are 192.168.1.1
