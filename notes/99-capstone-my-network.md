@@ -52,6 +52,53 @@ My laptop is itself a small network: **two NICs on the home LAN, two Docker brid
 
 → A container's packet is **NATed twice** (Docker, then the home router) before it reaches the internet. Replies are un-NATed twice via two independent conntrack tables.
 
+## Concept diagrams
+
+### My network as a graph
+
+```mermaid
+flowchart TB
+    NET(["internet"]) <--> ISP["ISP routers (public)"]
+    ISP <-->|"WAN: my public IPv4 (no CGNAT)"| HR
+    subgraph HOME["Home LAN 192.168.1.0/24 — one broadcast domain"]
+        HR["home router 192.168.1.1<br/>gateway + NAT + DHCP + DNS fwd"]
+    end
+    subgraph LAP["My laptop (ip_forward = 1)"]
+        ETH["eth0 192.168.1.9<br/>1000baseT/Full, metric 100"]
+        WL["wlp130s0f0 192.168.1.4<br/>Wi-Fi, metric 600"]
+        D0(("docker0<br/>172.17.0.0/16"))
+        DB(("br-8c84…<br/>172.18.0.0/16"))
+        TS["tailscale0<br/>WireGuard, MTU 1280"]
+        C1["container"] --- D0
+        C2["container"] --- D0
+        D0 -->|"MASQUERADE"| ETH
+        DB -.->|"MASQUERADE"| ETH
+    end
+    ETH <-->|"cable"| HR
+    WL <-.->|"Wi-Fi (backup route)"| HR
+    TS -.->|"UDP tunnel over eth0"| NET
+```
+
+### A container's packet is NATed twice
+
+```mermaid
+sequenceDiagram
+    participant C as container 172.17.0.2
+    participant H as laptop kernel (docker0 → eth0)
+    participant R as home router
+    participant X as 1.1.1.1
+    C->>H: src 172.17.0.2 (bridged onto docker0)
+    Note over H: routed + MASQUERADE #1<br/>src → 192.168.1.9
+    H->>R: src 192.168.1.9
+    Note over R: routed + MASQUERADE #2<br/>src → my public IP
+    R->>X: src public IP
+    X-->>R: reply
+    Note over R: conntrack #2 → 192.168.1.9
+    R-->>H: reply
+    Note over H: conntrack #1 → 172.17.0.2
+    H-->>C: reply
+```
+
 ## What I saw in the lab
 
 Lab: [`labs/c0-capstone.sh`](../labs/c0-capstone.sh) — `./labs/run.sh --host c0-capstone`. Output: [`labs/output/c0-capstone.txt`](../labs/output/c0-capstone.txt).

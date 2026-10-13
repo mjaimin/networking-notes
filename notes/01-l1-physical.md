@@ -55,6 +55,35 @@ Transceivers (SFP/SFP+/QSFP) are the swappable L1 part on switches: the port is 
                      └─────── highest common mode = 1000baseT/Full ───────┘
 ```
 
+## Concept diagrams
+
+### Autonegotiation — the slowest end wins
+
+```mermaid
+sequenceDiagram
+    participant NIC as Laptop NIC (10GBASE-T)
+    participant SW as Router port (1G)
+    NIC->>SW: I can do 10/100/1000/2500/5000/10000 Full
+    SW->>NIC: I can do 10/100 Half+Full, 1000 Full
+    Note over NIC,SW: highest common mode = 1000baseT/Full
+    NIC-->SW: link up at 1 Gb/s, full duplex
+```
+
+### "Link is up but slow" — L1 triage
+
+```mermaid
+flowchart TD
+    A["Link up, throughput bad"] --> B{"ethtool: speed as expected?"}
+    B -- "no, e.g. 100M on a 1G link" --> B1["Bad pair / cable / port<br/>(100M needs 2 pairs, 1G needs 4)"]
+    B -- yes --> C{"Duplex Full?"}
+    C -- "Half" --> C1["Duplex mismatch:<br/>autoneg both ends or force both"]
+    C -- Full --> D{"crc / frame errors growing?"}
+    D -- yes --> D1["Cable, connector, EMI:<br/>swap cable / port / SFP"]
+    D -- no --> E{"carrier changes growing?"}
+    E -- yes --> E1["Link flapping:<br/>transceiver / port / cable"]
+    E -- no --> F["L1 is healthy →<br/>look at drops, L2 and above"]
+```
+
 ## What I saw in the lab
 
 Lab: [`labs/a1-physical.sh`](../labs/a1-physical.sh) — `./labs/run.sh --host a1-physical`. Output: [`labs/output/a1-physical.txt`](../labs/output/a1-physical.txt).

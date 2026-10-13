@@ -71,6 +71,63 @@ QUIC runs **over UDP** and re-implements TCP's job (streams, reliability, conges
  UDP:  [src port|dst port| length  | checksum]                                            8 B
 ```
 
+## Concept diagrams
+
+### TCP life cycle (as captured in the lab)
+
+```mermaid
+sequenceDiagram
+    participant C as client 10.0.0.1:48022
+    participant S as server 10.0.0.2:7000
+    Note over C,S: 3-way handshake
+    C->>S: SYN seq=x
+    S->>C: SYN-ACK seq=y ack=x+1
+    C->>S: ACK ack=y+1
+    Note over C,S: ESTABLISHED
+    C->>S: PSH "hi" (3 bytes)
+    S->>C: ACK
+    S->>C: PSH "hello-from-server" (18 bytes)
+    C->>S: ACK
+    Note over C,S: teardown, server closes first
+    S->>C: FIN
+    C->>S: ACK
+    C->>S: FIN
+    S->>C: ACK
+    Note over S: TIME_WAIT 60 s (first FIN sender)
+```
+
+### TCP states
+
+```mermaid
+stateDiagram-v2
+    [*] --> CLOSED
+    CLOSED --> LISTEN: server listen()
+    CLOSED --> SYN_SENT: client connect() / send SYN
+    LISTEN --> SYN_RECV: recv SYN / send SYN-ACK
+    SYN_SENT --> ESTABLISHED: recv SYN-ACK / send ACK
+    SYN_RECV --> ESTABLISHED: recv ACK
+    ESTABLISHED --> FIN_WAIT_1: close() / send FIN
+    ESTABLISHED --> CLOSE_WAIT: recv FIN / send ACK
+    FIN_WAIT_1 --> FIN_WAIT_2: recv ACK
+    FIN_WAIT_2 --> TIME_WAIT: recv FIN / send ACK
+    CLOSE_WAIT --> LAST_ACK: close() / send FIN
+    LAST_ACK --> CLOSED: recv ACK
+    TIME_WAIT --> CLOSED: 2 x MSL timeout
+    note right of CLOSE_WAIT: stuck here = app never called close()
+```
+
+### Refused vs timed out vs unreachable
+
+```mermaid
+flowchart TD
+    C["client sends SYN"] --> Q{"What comes back?"}
+    Q -- "RST" --> R1["Connection refused (instant)<br/>nothing listening, or REJECT tcp-reset"]
+    Q -- "ICMP port unreachable" --> R2["Connection refused<br/>firewall REJECT (default)"]
+    Q -- "ICMP host unreachable / prohibited" --> R3["No route to host<br/>REJECT icmp-host-prohibited, or ARP failed"]
+    Q -- "nothing" --> R4["SYN retransmits 1,1,1,1,1,2,4 s ...<br/>Connection timed out"]
+    R4 --> W["DROP firewall, host down,<br/>wrong IP, missing return route"]
+```
+
 ## What I saw in the lab
 
 Lab: [`labs/a4-l4.sh`](../labs/a4-l4.sh) — `./labs/run.sh a4-l4`. Output: [`labs/output/a4-l4.txt`](../labs/output/a4-l4.txt).

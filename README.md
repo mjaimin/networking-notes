@@ -9,6 +9,32 @@ Every note is backed by a **runnable lab** and **real packet captures**.
 > **Bridge** = merge · **Route** = connect · **NAT** = disguise · **Isolate** = cut off · **Tunnel** = wrap.
 > **LAN/WAN** = how big · **Topology** = what shape · **Connection mode** = how networks join.
 
+## The big picture
+
+```mermaid
+flowchart TB
+    subgraph LAYERS["Part A — layers (who does what)"]
+        direction LR
+        L1["L1 Physical<br/>bits, link, duplex<br/>hub, cable"] --> L2["L2 Data link<br/>MAC, frames, VLAN<br/>switch, bridge, AP"]
+        L2 --> L3["L3 Network<br/>IP, routing, TTL<br/>router"]
+        L3 --> L4["L4 Transport<br/>ports, TCP, UDP<br/>L4 LB, firewall, PAT"]
+        L4 --> L7["L7 Application<br/>DNS, TLS, HTTP<br/>proxy, L7 LB"]
+    end
+    subgraph MODES["Part B — how networks join"]
+        direction LR
+        BR["Bridged<br/>merge: one L2 segment"]
+        RT["Routed<br/>connect: separate subnets"]
+        NT["NAT<br/>disguise: rewrite addresses"]
+        IS["Isolated<br/>cut off: no path out"]
+        TN["Tunneled<br/>wrap: packet in a packet"]
+    end
+    L2 -.-> BR
+    L3 -.-> RT
+    L3 -.-> IS
+    L4 -.-> NT
+    L3 -.-> TN
+```
+
 ## Notes
 
 ### Part A — Layers (bottom-up)
@@ -52,4 +78,4 @@ labs/                 lab scripts + runner + sanitizer
 labs/output/          captured output of the last run of each lab
 ```
 
-Each note follows the same template: *In one line → How it actually works → Diagram → What I saw in the lab → Gotchas → Checkpoint answer → Open questions.*
+Each note follows the same template: *In one line → How it actually works → Diagram → Concept diagrams (Mermaid) → What I saw in the lab → Gotchas → Checkpoint answer → Open questions.*

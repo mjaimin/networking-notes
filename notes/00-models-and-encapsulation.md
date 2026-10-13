@@ -73,6 +73,55 @@ The receiver reads each of these to decide which handler gets the rest of the by
      14 + 20 + 32 + 74 = 140 bytes on the wire (FCS stripped by the NIC before capture)
 ```
 
+## Concept diagrams
+
+### Encapsulation — down the stack to send, up the stack to receive
+
+```mermaid
+flowchart LR
+    subgraph TX["Sender (laptop)"]
+        direction TB
+        A7["L7 HTTP<br/>GET / HTTP/1.1"] --> A4["L4 TCP<br/>+ ports, seq/ack"]
+        A4 --> A3["L3 IPv4<br/>+ src/dst IP, TTL"]
+        A3 --> A2["L2 Ethernet<br/>+ src/dst MAC, FCS"]
+        A2 --> A1["L1 bits on the wire"]
+    end
+    subgraph RX["Receiver (server)"]
+        direction TB
+        B1["L1 bits"] --> B2["L2: strip Ethernet<br/>EtherType 0x0800 → IP"]
+        B2 --> B3["L3: strip IP<br/>Protocol 6 → TCP"]
+        B3 --> B4["L4: strip TCP<br/>dst port 80 → web server"]
+        B4 --> B7["L7: HTTP request"]
+    end
+    A1 == "cable / Wi-Fi / routers" ==> B1
+```
+
+### Demultiplexing — each header names the next one
+
+```mermaid
+flowchart LR
+    F["Ethernet frame"] -->|"EtherType 0x0800"| IP4["IPv4"]
+    F -->|"0x86DD"| IP6["IPv6"]
+    F -->|"0x0806"| ARP["ARP"]
+    IP4 -->|"Protocol 6"| TCP["TCP"]
+    IP4 -->|"Protocol 17"| UDP["UDP"]
+    IP4 -->|"Protocol 1"| ICMP["ICMP"]
+    TCP -->|"port 443"| HTTPS["HTTPS server"]
+    TCP -->|"port 22"| SSH["SSH server"]
+    UDP -->|"port 53"| DNS["DNS server"]
+```
+
+### What survives each hop
+
+```mermaid
+flowchart LR
+    L["Laptop<br/>src 192.168.1.9<br/>TTL 64"] -->|"MAC: laptop → router"| R["Home router<br/>NAT: src → public IP<br/>TTL 63"]
+    R -->|"MAC: router → ISP"| I["ISP routers<br/>TTL 62, 61, ..."]
+    I -->|"MAC: last hop → server"| S["Server<br/>sees public IP<br/>dst IP, ports, payload unchanged"]
+    classDef hop fill:#eef,stroke:#557
+    class L,R,I,S hop
+```
+
 ## What I saw in the lab
 
 > MAC addresses in all host captures are replaced with fake `02:00:00:00:00:NN` values by [`labs/sanitize.pl`](../labs/sanitize.pl) (`:01` = my laptop, `:02` = my router). `02:` = "locally administered" bit set, so these can never collide with a real vendor MAC.

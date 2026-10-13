@@ -94,6 +94,51 @@ Special ranges worth recognising:
             └─ rewritten every hop ─┘        └─ untouched ─┘          └─ −1 ─┘
 ```
 
+## Concept diagrams
+
+### Host: send directly or via the gateway?
+
+```mermaid
+flowchart TD
+    S["Send packet to dst IP"] --> M{"dst & mask == my network?"}
+    M -- yes --> A1["ARP for dst IP itself"] --> T1["Frame to dst's MAC"]
+    M -- no --> R{"Route for dst?<br/>(longest prefix match)"}
+    R -- "none, no default" --> U["connect: Network unreachable<br/>(nothing sent)"]
+    R -- "via gateway G" --> A2["ARP for G's IP"] --> T2["Frame to G's MAC,<br/>IP header still says dst"]
+```
+
+### Router: what happens to every packet
+
+```mermaid
+flowchart TD
+    IN["Frame to my MAC"] --> STRIP["Strip L2"]
+    STRIP --> ME{"dst IP is mine?"}
+    ME -- yes --> LOCAL["Deliver to local process"]
+    ME -- no --> FWD{"ip_forward = 1?"}
+    FWD -- no --> D0["Drop silently"]
+    FWD -- yes --> LPM{"Longest prefix match"}
+    LPM -- "no route" --> U["Drop + ICMP Net Unreachable"]
+    LPM -- "next hop + egress if" --> TTL{"TTL − 1 == 0?"}
+    TTL -- yes --> TE["Drop + ICMP Time Exceeded"]
+    TTL -- no --> MTU{"size > egress MTU?"}
+    MTU -- "yes, DF set" --> FN["Drop + ICMP Frag Needed (mtu N)"]
+    MTU -- "no" --> ARP["ARP next hop, new L2 header"] --> OUT["Send"]
+```
+
+### traceroute — TTL 1, 2, 3 …
+
+```mermaid
+sequenceDiagram
+    participant A as A 10.0.1.10
+    participant R as R 10.0.1.1
+    participant C as C 10.0.2.10
+    A->>R: probe, TTL=1
+    R-->>A: ICMP Time Exceeded (from 10.0.1.1) → hop 1
+    A->>R: probe, TTL=2
+    R->>C: forwarded, TTL=1
+    C-->>A: echo reply (from 10.0.2.10) → hop 2, done
+```
+
 ## What I saw in the lab
 
 Lab: [`labs/a3-l3.sh`](../labs/a3-l3.sh) — `./labs/run.sh a3-l3`. Output: [`labs/output/a3-l3.txt`](../labs/output/a3-l3.txt).

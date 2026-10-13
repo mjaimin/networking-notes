@@ -67,6 +67,62 @@ L2 delivers **frames between NICs on the same segment** using MAC addresses; a s
    ARP broadcast from h1 ──► p2, p4  (same VLAN)  ✗ p3 (other VLAN)
 ```
 
+## Concept diagrams
+
+### ARP + switch learning (h1 pings h2, h3 is a bystander)
+
+```mermaid
+sequenceDiagram
+    participant H1 as h1 10.0.0.1
+    participant SW as switch (FDB)
+    participant H2 as h2 10.0.0.2
+    participant H3 as h3 10.0.0.3
+    H1->>SW: ARP who-has 10.0.0.2? (dst ff:ff:ff:ff:ff:ff)
+    Note over SW: learn 02..01 → p1
+    SW->>H2: flood
+    SW->>H3: flood (h3 sees it, ignores it)
+    H2->>SW: ARP reply 10.0.0.2 is-at 02..02 (unicast)
+    Note over SW: learn 02..02 → p2
+    SW->>H1: forward only to p1
+    H1->>SW: ICMP echo request → 02..02
+    SW->>H2: known MAC → p2 only
+    H2->>SW: ICMP echo reply → 02..01
+    SW->>H1: known MAC → p1 only
+    Note over H3: saw only the first broadcast
+```
+
+### How a switch decides where a frame goes
+
+```mermaid
+flowchart TD
+    IN["Frame arrives on port P"] --> L["Learn: src MAC → P (FDB, ages out ~300 s)"]
+    L --> Q{"dst MAC?"}
+    Q -- "broadcast / multicast" --> FL["Flood to all ports in the VLAN except P"]
+    Q -- "unicast, unknown" --> FL
+    Q -- "unicast, known on port X" --> X{"X == P?"}
+    X -- yes --> DROP["Filter (drop)"]
+    X -- no --> FW["Forward out port X only"]
+```
+
+### VLANs: access vs trunk
+
+```mermaid
+flowchart LR
+    subgraph SW["One physical switch"]
+        P1["p1 access VLAN 10"]
+        P2["p2 access VLAN 10"]
+        P3["p3 access VLAN 20"]
+        P4["p4 trunk: VLAN 10 tagged"]
+    end
+    H1["h1 (untagged)"] --- P1
+    H2["h2 (untagged)"] --- P2
+    H3["h3 (untagged)"] --- P3
+    P4 ===|"802.1Q tag vid 10, +4 bytes"| H4["h4 eth0.10 (VLAN-aware)"]
+    P1 -. "same broadcast domain" .- P2
+    P1 -. "same broadcast domain" .- P4
+    P1 x-. "isolated" .-x P3
+```
+
 ## What I saw in the lab
 
 Lab: [`labs/a2-l2.sh`](../labs/a2-l2.sh) — `./labs/run.sh a2-l2`. Output: [`labs/output/a2-l2.txt`](../labs/output/a2-l2.txt). MACs are set by the lab (`02:00:00:00:00:0N` = host hN).

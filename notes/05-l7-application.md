@@ -70,6 +70,72 @@ L7 is what the program actually says (DNS questions, HTTP requests); between it 
  +45 ms    HTTP/2  GET /  →  :status 200           ── 1 RTT ──    (first byte 0.045 s)
 ```
 
+## Concept diagrams
+
+### DNS resolution
+
+```mermaid
+sequenceDiagram
+    participant App as curl
+    participant Stub as stub 127.0.0.53
+    participant Rec as recursive resolver
+    participant Root as root servers
+    participant TLD as .com servers
+    participant Auth as hera.ns.cloudflare.com
+    App->>Stub: getaddrinfo("example.com")
+    Stub->>Rec: A? example.com (rd)
+    alt cached
+        Rec-->>Stub: A 104.20.23.154 (TTL counting down)
+    else cache miss
+        Rec->>Root: A? example.com
+        Root-->>Rec: ask .com (NS a.gtld-servers.net)
+        Rec->>TLD: A? example.com
+        TLD-->>Rec: ask hera.ns.cloudflare.com
+        Rec->>Auth: A? example.com
+        Auth-->>Rec: A 104.20.23.154, TTL 300 (aa)
+        Rec-->>Stub: A 104.20.23.154
+    end
+    Stub-->>App: 104.20.23.154
+```
+
+### One `curl https://example.com`, end to end
+
+```mermaid
+sequenceDiagram
+    participant L as laptop
+    participant D as DNS 1.1.1.1
+    participant S as example.com (Cloudflare edge)
+    L->>D: UDP 53: A? example.com
+    D-->>L: A 104.20.23.154, 172.66.147.243
+    Note over L,S: TCP (1 RTT)
+    L->>S: SYN (mss 1460)
+    S-->>L: SYN-ACK (mss 1400)
+    L->>S: ACK
+    Note over L,S: TLS 1.3 (1 RTT)
+    L->>S: ClientHello (SNI=example.com, ALPN h2) - visible
+    S-->>L: ServerHello + encrypted cert + Finished
+    L->>S: Finished
+    Note over L,S: HTTP/2 inside TLS - opaque without keys
+    L->>S: HEADERS stream 1: GET /
+    S-->>L: HEADERS :status 200 + DATA
+```
+
+### L4 vs L7 load balancer
+
+```mermaid
+flowchart LR
+    subgraph L4["L4 load balancer"]
+        C1["client"] -->|"one TCP flow, TLS passes through"| LB4["picks backend by IP:port hash"]
+        LB4 --> B1["backend A"]
+        LB4 --> B2["backend B"]
+    end
+    subgraph L7["L7 load balancer / reverse proxy"]
+        C2["client"] -->|"TCP + TLS #1 (terminated)"| LB7["reads HTTP: host, path, headers"]
+        LB7 -->|"TCP #2, path /api"| B3["api backend"]
+        LB7 -->|"TCP #3, path /static"| B4["static backend"]
+    end
+```
+
 ## What I saw in the lab
 
 Lab: [`labs/a5-l7.sh`](../labs/a5-l7.sh) — `./labs/run.sh --host a5-l7`. Output: [`labs/output/a5-l7.txt`](../labs/output/a5-l7.txt).

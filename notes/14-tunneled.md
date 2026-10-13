@@ -48,6 +48,51 @@ WireGuard:       [outer IP | UDP 51820 | WG hdr | **encrypted** inner IP … | a
  VXLAN VNI 42:  xA 10.9.0.1 ─ br42 ─ vx42 ═══ UDP 4789 ═══ vx42 ─ br42 ─ xB 10.9.0.2   (same /24, same L2)
 ```
 
+## Concept diagrams
+
+### Encapsulation — packets inside packets
+
+```mermaid
+flowchart LR
+    subgraph GRE["GRE: L3 inside L3 (+24 B)"]
+        direction LR
+        g1["outer IPv4<br/>203.0.113.2 → 198.51.100.2<br/>proto 47"] --- g2["GRE 4 B"] --- g3["inner IPv4<br/>10.1.0.10 → 10.2.0.10"] --- g4["ICMP / TCP ..."]
+    end
+    subgraph VX["VXLAN: L2 inside UDP (+50 B)"]
+        direction LR
+        v1["outer IPv4"] --- v2["UDP → 4789"] --- v3["VXLAN 8 B<br/>VNI 42"] --- v4["inner Ethernet<br/>02..9a:01 → 02..9b:01"] --- v5["inner IPv4 ..."]
+    end
+```
+
+### Two sites over the internet with GRE
+
+```mermaid
+sequenceDiagram
+    participant A as a1 10.1.0.10
+    participant GA as gwA 203.0.113.2
+    participant I as internet (public routes only)
+    participant GB as gwB 198.51.100.2
+    participant B as b1 10.2.0.10
+    A->>GA: IP 10.1.0.10 → 10.2.0.10
+    Note over GA: route 10.2.0.0/24 dev gre1<br/>wrap in outer IP
+    GA->>I: IP 203.0.113.2 → 198.51.100.2 [GRE [10.1.0.10 → 10.2.0.10]]
+    I->>GB: routed on outer header only
+    Note over GB: unwrap
+    GB->>B: IP 10.1.0.10 → 10.2.0.10
+```
+
+### Fitting packets through a tunnel
+
+```mermaid
+flowchart TD
+    S["TCP SYN offers MSS 1460<br/>(1500-byte packets)"] --> C{"tunnel router clamps MSS?"}
+    C -- yes --> OK1["SYN rewritten to MSS 1436<br/>segments always fit gre1 MTU 1476"]
+    C -- no --> P["full-size packet with DF reaches gwA"]
+    P --> ICMP{"ICMP Frag Needed gets back to sender?"}
+    ICMP -- yes --> OK2["PMTUD: sender caches mtu 1476, retries smaller"]
+    ICMP -- "no, filtered" --> BH["PMTU black hole:<br/>small requests work, big responses hang"]
+```
+
 ## What I saw in the lab
 
 Lab: [`labs/b5-tunneled.sh`](../labs/b5-tunneled.sh) — `./labs/run.sh b5-tunneled`. Output: [`labs/output/b5-tunneled.txt`](../labs/output/b5-tunneled.txt).

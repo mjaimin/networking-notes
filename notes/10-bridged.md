@@ -52,6 +52,53 @@ Bridging **merges segments into one L2 network**: one broadcast domain, one subn
              ╲═ l2 ═╱            with STP:    l2b blocking → a tree, 1 copy
 ```
 
+## Concept diagrams
+
+### Bridged topology — one segment, one subnet, one DHCP server
+
+```mermaid
+flowchart TB
+    BR(("br0<br/>Linux bridge = switch"))
+    RTR["rtr 192.168.50.1<br/>DHCP server + gateway"] --- BR
+    H1["h1 .126 (DHCP)"] --- BR
+    H2["h2 .127 (DHCP)"] --- BR
+    H3["h3 .128 (DHCP)"] --- BR
+    VM["VM in 'Bridged Adapter' mode<br/>(just another port)"] -.- BR
+```
+
+### DHCP DORA — everything is broadcast
+
+```mermaid
+sequenceDiagram
+    participant H1 as h1 (no IP yet)
+    participant ALL as everyone on br0
+    participant SRV as DHCP server 192.168.50.1
+    H1->>ALL: DISCOVER 0.0.0.0 → 255.255.255.255
+    ALL->>SRV: (broadcast reaches the server)
+    SRV->>ALL: OFFER yiaddr=192.168.50.126
+    H1->>ALL: REQUEST 192.168.50.126 (broadcast: other servers learn they lost)
+    SRV->>ALL: ACK lease 3600 s, router .1, dns .1
+    Note over H1: configure 192.168.50.126/24, default via .1
+```
+
+### Why STP exists
+
+```mermaid
+flowchart LR
+    subgraph NOSTP["Without STP"]
+        A1["brA"] <-->|"l1"| B1["brB"]
+        A1 <-->|"l2"| B1
+        X1["1 broadcast"] --> A1
+        B1 --> S1["3.5 M frames/s<br/>broadcast storm"]
+    end
+    subgraph STP["With STP"]
+        A2["brA (root)"] <-->|"l1 forwarding"| B2["brB"]
+        A2 -.-x|"l2b BLOCKING"| B2
+        X2["1 broadcast"] --> A2
+        B2 --> S2["1 copy delivered"]
+    end
+```
+
 ## What I saw in the lab
 
 Lab: [`labs/b1-bridged.sh`](../labs/b1-bridged.sh) — `./labs/run.sh b1-bridged`. Output: [`labs/output/b1-bridged.txt`](../labs/output/b1-bridged.txt).

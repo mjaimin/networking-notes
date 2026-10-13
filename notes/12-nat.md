@@ -54,6 +54,61 @@ Not a security feature — **an unsolicited packet has no conntrack entry to mat
      reply: 198.51.100.10:80  → 203.0.113.2:18956     ← reply arrives here, table maps it back to l2
 ```
 
+## Concept diagrams
+
+### SNAT / PAT with conntrack
+
+```mermaid
+sequenceDiagram
+    participant L2 as l2 192.168.1.20:40000
+    participant GW as gw (MASQUERADE) WAN 203.0.113.2
+    participant S as srv 198.51.100.10:80
+    L2->>GW: SYN 192.168.1.20:40000 → 198.51.100.10:80
+    Note over GW: port 40000 already used by l1<br/>conntrack: orig 192.168.1.20:40000 ⇄ reply 203.0.113.2:18956
+    GW->>S: SYN 203.0.113.2:18956 → 198.51.100.10:80
+    S->>GW: SYN-ACK → 203.0.113.2:18956
+    Note over GW: lookup reply tuple → rewrite dst back
+    GW->>L2: SYN-ACK → 192.168.1.20:40000
+```
+
+### Where NAT happens in Linux (netfilter hooks)
+
+```mermaid
+flowchart LR
+    IN(["packet in"]) --> PRE["PREROUTING<br/>DNAT (port-forward)"]
+    PRE --> RT{"routing decision"}
+    RT -- "for this host" --> INP["INPUT"] --> P["local process"]
+    P --> OUT["OUTPUT"] --> POST
+    RT -- "forward" --> FWD["FORWARD<br/>filter"]
+    FWD --> POST["POSTROUTING<br/>SNAT / MASQUERADE"]
+    POST --> EGR(["packet out"])
+```
+
+### Why inbound is "blocked" and how port-forwarding fixes it
+
+```mermaid
+flowchart TD
+    P["srv → 203.0.113.2:8080 (unsolicited)"] --> CT{"conntrack entry?"}
+    CT -- "yes (reply to an outbound flow)" --> REV["reverse-translate → inside host"]
+    CT -- no --> DN{"DNAT rule for :8080?"}
+    DN -- yes --> FWD["rewrite dst → 192.168.1.10:8080,<br/>create entry, forward"]
+    DN -- no --> LOC["delivered to gw itself →<br/>nothing listening → RST (refused)"]
+```
+
+### Hairpin NAT — why it fails without the extra SNAT
+
+```mermaid
+sequenceDiagram
+    participant L2 as l2 192.168.1.20
+    participant GW as gw
+    participant L1 as l1 192.168.1.10 (web server)
+    L2->>GW: SYN → 203.0.113.2:8080 (public address)
+    GW->>L1: DNAT → 192.168.1.10:8080 (src still 192.168.1.20)
+    L1->>L2: SYN-ACK from 192.168.1.10 - directly over the switch, bypassing gw
+    L2->>L1: RST - "I never called 192.168.1.10"
+    Note over L2,L1: fix: SNAT on the LAN side so L1 replies to gw
+```
+
 ## What I saw in the lab
 
 Lab: [`labs/b3-nat.sh`](../labs/b3-nat.sh) — `./labs/run.sh b3-nat`. Output: [`labs/output/b3-nat.txt`](../labs/output/b3-nat.txt).

@@ -39,6 +39,40 @@ Broadcasts never cross a router, so an isolated segment is also an isolated **br
            └── "internal": unplug the host → members only └──────────────┘
 ```
 
+## Concept diagrams
+
+### Will this packet leave the segment?
+
+```mermaid
+flowchart TD
+    S["host sends to an outside IP"] --> R{"route for it?"}
+    R -- no --> U["connect: Network unreachable<br/>nothing hits the wire"]
+    R -- "yes, via gateway" --> G{"gateway forwards?<br/>ip_forward = 1"}
+    G -- no --> D1["dropped at gateway, silently"]
+    G -- yes --> P{"FORWARD policy allows it?"}
+    P -- no --> D2["dropped + counted (auditable)"]
+    P -- yes --> N{"NAT / return route exists?"}
+    N -- no --> D3["leaves, reply never returns"]
+    N -- yes --> OUT["NOT isolated<br/>(this is NAT or routed mode)"]
+```
+
+### Flavours of isolation
+
+```mermaid
+flowchart LR
+    subgraph HO["Host-only"]
+        h1["vm1"] --- b1(("segment")) --- h2["vm2"]
+        b1 --- host["host (member)"]
+    end
+    subgraph INT["Internal"]
+        i1["vm1"] --- b2(("segment")) --- i2["vm2"]
+    end
+    subgraph AG["Air-gapped"]
+        a1["plc"] --- b3(("separate switch")) --- a2["hmi"]
+    end
+    host -. "ip_forward + MASQUERADE<br/>= becomes NAT mode" .-> NET["internet"]
+```
+
 ## What I saw in the lab
 
 Lab: [`labs/b4-isolated.sh`](../labs/b4-isolated.sh) — `./labs/run.sh b4-isolated`. Output: [`labs/output/b4-isolated.txt`](../labs/output/b4-isolated.txt).

@@ -51,6 +51,59 @@ Dynamic protocols only **fill the same routing table** automatically and react t
                   └──── forward path ────▶                ◀──── return path ────┘
 ```
 
+## Concept diagrams
+
+### Two subnets, two routers — both directions need a route
+
+```mermaid
+flowchart LR
+    A1["a1 10.1.0.10<br/>default via 10.1.0.1"] --- R1["R1<br/>10.2.0.0/24 via 10.255.0.2"]
+    R1 ===|"transit 10.255.0.0/30"| R2["R2<br/>10.1.0.0/24 via 10.255.0.1"]
+    R2 --- B1["b1 10.2.0.10<br/>default via 10.2.0.1"]
+    A1 -. "forward path" .-> B1
+    B1 -. "return path (separate decision)" .-> A1
+```
+
+### The one-way failure (R2 has no route back, rp_filter off)
+
+```mermaid
+sequenceDiagram
+    participant A as a1 10.1.0.10
+    participant R1
+    participant R2
+    participant B as b1 10.2.0.10
+    A->>R1: echo request → 10.2.0.10
+    R1->>R2: route 10.2.0.0/24 via 10.255.0.2
+    R2->>B: connected route
+    B->>R2: echo reply → 10.1.0.10 (via default gw)
+    R2--xB: ICMP net 10.1.0.10 unreachable
+    Note over A: 100% loss - looks exactly like a firewall DROP
+```
+
+### Finding the missing route
+
+```mermaid
+flowchart TD
+    S["Ping fails one way"] --> C{"Capture at destination:<br/>request arrives?"}
+    C -- no --> F["Forward path problem:<br/>route, firewall, or rp_filter on the way in"]
+    F --> RP["check nstat TcpExtIPReversePathFilter<br/>and rp_filter on each router"]
+    C -- yes --> R{"Reply leaves the destination?"}
+    R -- no --> H["Host firewall / no route on the host itself"]
+    R -- yes --> RET["Return path problem"]
+    RET --> W["ip route get SOURCE on each router back toward it"]
+    W --> FIX["First router answering 'Network unreachable'<br/>= add route / summary / default there"]
+```
+
+### Router-on-a-stick
+
+```mermaid
+flowchart LR
+    V10["v10 172.16.10.10<br/>access VLAN 10"] --- SW["switch"]
+    V20["v20 172.16.20.10<br/>access VLAN 20"] --- SW
+    SW ===|"trunk: tagged 10 + 20"| R["R1<br/>trunk.10 = 172.16.10.1<br/>trunk.20 = 172.16.20.1"]
+    R -. "in tagged 10 → out tagged 20" .-> R
+```
+
 ## What I saw in the lab
 
 Lab: [`labs/b2-routed.sh`](../labs/b2-routed.sh) — `./labs/run.sh b2-routed`. Output: [`labs/output/b2-routed.txt`](../labs/output/b2-routed.txt).
