@@ -1,0 +1,29 @@
+### 1. i1's routing table: connected route only, no default
+10.50.0.0/24 dev eth0 proto kernel scope link src 10.50.0.11 
+
+### 2. inside the segment everything works (members + host = 'host-only')
+i1 → 10.50.0.12   0% packet loss
+i1 → 10.50.0.1    0% packet loss
+
+### 3. outside: no route → the kernel refuses before anything hits the wire
+ping: connect: Network unreachable
+packets on i1's wire: 0
+
+### 4. give i1 a default route via host — host still doesn't forward (ip_forward=0)
+100% packet loss
+arrived at host (segment side): 1   left host (uplink side): 0
+
+### 5. the only thing standing between 'isolated' and 'NAT mode' is two settings
+i1 → internet  0% packet loss
+--- …so isolation that matters is enforced with policy, not by hoping nobody turns forwarding on:
+i1 → internet  100% packet loss   (FORWARD DROP)
+Chain FORWARD (policy ACCEPT 0 packets, 0 bytes)
+ pkts bytes target     prot opt in     out     source               destination         
+    1    84 DROP       0    --  eth0   uplink  0.0.0.0/0            0.0.0.0/0           
+
+### 6. 'internal network': take the host off the segment
+i1 → i2    0% packet loss
+i1 → host  100% packet loss
+
+### 7. broadcasts stay inside: i1's ARP flood, watched from the 'internet'
+frames seen on the internet side: 0
