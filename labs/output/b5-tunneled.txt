@@ -1,0 +1,48 @@
+### 1. no tunnel: the internet doesn't route private addresses
+1 packets transmitted, 0 received, 100% packet loss, time 0ms
+
+### 2. GRE tunnel between the two public addresses (L3 inside L3)
+gre1@NONE: <POINTOPOINT,NOARP,UP,LOWER_UP> mtu 1476
+64 bytes from 10.2.0.10: icmp_seq=1 ttl=62 time=0.109 ms
+--- on the internet link (what an ISP sees):
+IP (tos 0x0, ttl 64, id 64029, offset 0, flags [DF], proto GRE (47), length 108)
+    203.0.113.2 > 198.51.100.2: GREv0, Flags [none], length 88
+	IP (tos 0x0, ttl 63, id 36041, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.1.0.10 > 10.2.0.10: ICMP echo request, id 69, seq 1, length 64
+IP (tos 0x0, ttl 63, id 10193, offset 0, flags [DF], proto GRE (47), length 108)
+    198.51.100.2 > 203.0.113.2: GREv0, Flags [none], length 88
+	IP (tos 0x0, ttl 63, id 53450, offset 0, flags [none], proto ICMP (1), length 84)
+    10.2.0.10 > 10.1.0.10: ICMP echo reply, id 69, seq 1, length 64
+--- traceroute: the whole internet looks like one hop
+ 1  10.1.0.1  0.005 ms
+ 2  169.254.0.2  0.001 ms
+ 3  10.2.0.10  0.001 ms
+
+### 3. MTU: inner packets must be 24 B smaller
+From 10.1.0.1 icmp_seq=1 Frag needed and DF set (mtu = 1476)
+1456 bytes from 10.2.0.10: icmp_seq=1 ttl=62 time=0.052 ms
+--- a1 has now cached the smaller path MTU:
+    cache expires 599sec mtu 1476 
+
+### 4. MSS clamping on the tunnel router
+SYN mss arriving at b1, no clamping:  mss 1460
+SYN mss arriving at b1, with clamping: mss 1436
+
+### 5. VXLAN: stretch ONE L2 segment (10.9.0.0/24) across both sites
+vx42: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450
+64 bytes from 10.9.0.2: icmp_seq=1 ttl=64 time=0.146 ms
+--- on the internet link:
+66:67:97:51:60:7e > 4e:f9:96:07:ac:4b, ethertype IPv4 (0x0800), length 92: 203.0.113.2.39536 > 198.51.100.2.4789: VXLAN, flags [I] (0x08), vni 42
+02:00:00:00:9a:01 > ff:ff:ff:ff:ff:ff, ethertype ARP (0x0806), length 42: Request who-has 10.9.0.2 tell 10.9.0.1, length 28
+4e:f9:96:07:ac:4b > 66:67:97:51:60:7e, ethertype IPv4 (0x0800), length 92: 198.51.100.2.39536 > 203.0.113.2.4789: VXLAN, flags [I] (0x08), vni 42
+02:00:00:00:9b:01 > 02:00:00:00:9a:01, ethertype ARP (0x0806), length 42: Reply 10.9.0.2 is-at 02:00:00:00:9b:01, length 28
+66:67:97:51:60:7e > 4e:f9:96:07:ac:4b, ethertype IPv4 (0x0800), length 148: 203.0.113.2.59429 > 198.51.100.2.4789: VXLAN, flags [I] (0x08), vni 42
+02:00:00:00:9a:01 > 02:00:00:00:9b:01, ethertype IPv4 (0x0800), length 98: 10.9.0.1 > 10.9.0.2: ICMP echo request, id 151, seq 1, length 64
+4e:f9:96:07:ac:4b > 66:67:97:51:60:7e, ethertype IPv4 (0x0800), length 148: 198.51.100.2.59429 > 203.0.113.2.4789: VXLAN, flags [I] (0x08), vni 42
+02:00:00:00:9b:01 > 02:00:00:00:9a:01, ethertype IPv4 (0x0800), length 98: 10.9.0.2 > 10.9.0.1: ICMP echo reply, id 151, seq 1, length 64
+--- xA's ARP cache: it learned xB's MAC directly, as if on the same switch
+10.9.0.2 dev eth0 lladdr 02:00:00:00:9b:01 REACHABLE 
+--- gwA's VXLAN forwarding table (remote MAC → remote tunnel endpoint)
+02:00:00:00:9b:01 master br42 
+02:00:00:00:9b:01 dst 198.51.100.2 self 
+00:00:00:00:00:00 dst 198.51.100.2 self permanent
