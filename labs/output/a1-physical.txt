@@ -1,0 +1,63 @@
+### 1. negotiated link (ethtool eth0)
+	Supported link modes:   10baseT/Full
+	                        100baseT/Full
+	                        1000baseT/Full
+	                        10000baseT/Full
+	                        2500baseT/Full
+	                        5000baseT/Full
+	Advertised link modes:  10baseT/Full
+	                        100baseT/Full
+	                        1000baseT/Full
+	                        10000baseT/Full
+	                        2500baseT/Full
+	                        5000baseT/Full
+	Link partner advertised link modes:  10baseT/Half 10baseT/Full
+	                                     100baseT/Half 100baseT/Full
+	                                     1000baseT/Full
+	Speed: 1000Mb/s
+	Duplex: Full
+	Auto-negotiation: on
+	Port: Twisted Pair
+	Link detected: yes
+
+### 2. same facts straight from the kernel (/sys/class/net/eth0)
+carrier    1
+operstate  up
+speed      1000
+duplex     full
+mtu        1500
+
+### 3. L1/L2 counters (ip -s -s link)
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000
+    link/ether 02:00:00:00:00:01 brd ff:ff:ff:ff:ff:ff
+    RX:    bytes   packets errors dropped  missed   mcast           
+    145454009857 105302662      0   11223       0   56430 
+    RX errors:      length    crc   frame    fifo overrun otherhost
+                         0      0       0       0       0  85964113 
+    TX:    bytes   packets errors dropped carrier collsns           
+      6749041869  45278433      0   20504       0       0 
+    TX errors:     aborted   fifo  window heartbt transns
+                         0      0       0       0      29 
+
+### 4. driver-level error counters (non-zero or interesting only)
+     InDroppedDma: 0
+     Queue[0] XdpDrop: 0
+     Queue[1] XdpDrop: 0
+     Queue[2] XdpDrop: 0
+     Queue[3] XdpDrop: 0
+     Queue[4] XdpDrop: 0
+     Queue[5] XdpDrop: 0
+     Queue[6] XdpDrop: 0
+     Queue[7] XdpDrop: 0
+
+### 5. driver / firmware
+driver: atlantic
+version: 7.0.0-38-generic
+firmware-version: 1.5.38
+expansion-rom-version: 
+bus-info: 0000:81:00.0
+
+### 6. a virtual NIC for comparison (veth has no physical layer)
+	Speed: 10000Mb/s
+	Duplex: Full
+	Link detected: yes
